@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "RSS",
+  "version": "132.905",
+  "action": {
+    "default_icon": {
+      "128": "icon.png"
+    }
+  },
+  "icons": {
+    "128": "icon.png"
+  },
+  "background": {
+    "service_worker": "worker.js"
+  },
+  "host_permissions": ["https://*/"],
+  "permissions": ["alarms", "history", "storage", "tabs"]
+}

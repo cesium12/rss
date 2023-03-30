@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>rss</title>
+  <script src="/rss/socket.io/socket.io.js"></script>
+</head>
+<body>
+  <form id="subscribe"><input name="class"></form>
+  <table id="content"></table>
+  <script>
+const socket = io.connect({path: '/rss/socket.io'});
+socket.on('init', data => {
+  content.textContent = '';
+  subscribe.class.disabled = false;
+  subscribe.class.value = '';
+  for (const {link, title, updated, site, error} of data) {
+    const row = content.insertRow();
+    row.insertCell().append(updated ? new Date(updated).toLocaleString() : '');
+    const button = document.createElement('button');
+    button.textContent = '×';
+    button.addEventListener('click', () => {
+      button.disabled = true;
+      socket.emit('unsubscribe', link);
+    });
+    row.insertCell().append(button);
+    const a1 = document.createElement('a');
+    a1.textContent = link;
+    a1.href = link;
+    const div = document.createElement('div');
+    div.textContent = error;
+    div.style.color = 'crimson';
+    row.insertCell().append(a1, error ? div : '');
+    const a2 = document.createElement('a');
+    a2.textContent = title;
+    a2.href = site;
+    row.insertCell().append(site ? a2 : '');
+  }
+});
+subscribe.addEventListener('submit', evt => {
+  evt.preventDefault();
+  socket.emit('subscribe', subscribe.class.value);
+  subscribe.class.disabled = true;
+}); 
+  </script>
+  <style>
+html {
+  background: #ccc;
+  font-size: 14px;
+  font-family: monospace;
+}
+form {
+  text-align: center;
+}
+table {
+  margin: auto;
+}
+  </style>
+</body>
+</html>
