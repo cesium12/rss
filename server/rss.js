@@ -12,7 +12,8 @@ const io = socketio(app.listen(settings.port));
 const connection = mysql.createPool(settings.sqldb);
 const parser = new rssparser();
 parser.parseString = (parse => function(xml, callback) {
-  return parse.call(this, xml.replace(/^.+?(<[?]xml )/is, '$1'), callback);
+  xml = xml.replace(/^.+?(<[?]xml )/is, '$1').replace(/&(?!#?\w+;)/g, '&amp;');
+  return parse.call(this, xml, callback);
 })(parser.parseString);
 
 async function update(link) {
@@ -34,14 +35,16 @@ async function update(link) {
         [data.items.map(({link}) => link)]);
     for (const {link, title, isoDate} of data.items) {
       const exist = exists.find(exist => exist.link == link);
+      const updated = new Date(isoDate);
+      updated.setMilliseconds(0);
       if (exist) {
         const before = [exist.link, exist.title, exist.updated, exist.created];
         const after = [link, title ? title : exist.title,
-          isoDate ? new Date(isoDate) : exist.updated, exist.created];
+          isoDate ? updated : exist.updated, exist.created];
         JSON.stringify(before) == JSON.stringify(after) ?
             rows.delete(link) : rows.set(link, after);
       } else rows.set(link, [link, title ? title : link,
-        isoDate ? new Date(isoDate) : now, now]);
+        isoDate ? updated : now, now]);
     }
     if (rows.size) {
       console.log(rows.size, link);
