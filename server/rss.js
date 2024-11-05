@@ -6,20 +6,16 @@ const rssparser = require('rss-parser');
 const socketio = require('socket.io');
 const settings = require(process.argv[2] || `${process.cwd()}/settings`);
 require('console-stamp')(console, {label: false, colors: {stamp: 'yellow'}});
-
 const app = express();
 const io = socketio(app.listen(settings.port));
 const connection = mysql.createPool(settings.sqldb);
 const parser = new rssparser();
-parser.parseString = (parse => function(xml, callback) {
-  xml = xml.replace(/^.+?(<[?]xml )/is, '$1').replace(/&(?!#?\w+;)/g, '&amp;');
-  return parse.call(this, xml, callback);
-})(parser.parseString);
 
 async function update(link) {
   let data = null, date = null, rows = new Map(), now = new Date();
   try {
-    data = await parser.parseURL(link);
+    data = await parser.parseString((await (await fetch(link)).text())
+        .replace(/^.+?(<[?]xml )/is, '$1').replace(/&(?!#?\w+;)/g, '&amp;'));
   } catch (error) {
     return connection.query('UPDATE feeds SET error = ? WHERE link = ?',
         [String(error), link]);
