@@ -1,7 +1,7 @@
 chrome.storage.local.get('rss', ({rss: {feed, items}}) => {
   const rows = items.map(item => `<tr>
     <td title="${new Date(item.updated)}">${since(item.updated)}</td>
-    <td><a href="${item.link}" target="_blank" title="${item.title} | ${item.link}">${item.title}</a></td>
+    <td><a href="${item.link}" target="_blank"${item.visited ? ' style="color: red"' : ''} title="${item.title.replace(/"/g, '&quot;')} | ${item.link}">${item.title}</a></td>
   </tr>`);
   rows.unshift(`<tr>
     <th><a href="${feed}" target="_blank">&#x1f517;</a></th>
