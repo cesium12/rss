@@ -7,11 +7,10 @@ exports.sqldb = {
 
 exports.port = FIXME;
 
-exports.http = [];
-
 /*
 CREATE TABLE feeds (
   link VARCHAR(255) PRIMARY KEY,
+  local BOOLEAN NOT NULL,
   title TEXT,
   updated DATETIME,
   site VARCHAR(255),

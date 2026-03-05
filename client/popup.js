@@ -1,4 +1,4 @@
-chrome.storage.local.get('rss', ({rss: {feed, items}}) => {
+chrome.storage.local.get('rss', ({rss: {feed, items, local}}) => {
   const rows = items.map(item => `<tr>
     <td title="${new Date(item.updated)}">${since(item.updated)}</td>
     <td><a href="${item.link}" target="_blank"${item.visited ? ' style="color: red"' : ''} title="${item.title.replace(/"/g, '&quot;')} | ${item.link}">${item.title}</a></td>
@@ -9,17 +9,28 @@ chrome.storage.local.get('rss', ({rss: {feed, items}}) => {
   </tr>`);
   document.querySelector('table').innerHTML = rows.join('');
   document.querySelector('button').addEventListener('click', () => {
-    for (const item of items)
-      if (!item.visited)
-        chrome.tabs.create({url: item.link, active: false});
+    for (const {link, visited} of items)
+      if (!visited) chrome.tabs.create({url: link, active: false});
+    for (const {link} of local)
+      chrome.tabs.create({url: link, active: false}).then(({id}) =>
+          chrome.runtime.sendMessage(null, {type: 'register', id, link}));
     chrome.action.setBadgeText({text: ''});
   });
 });
 
 function since(updated) {
   let ms = Date.now() - new Date(updated);
-  if ((ms /= 1000) < 60) return `${ms | 0}s`;
-  if ((ms /= 60) < 60) return `${ms | 0}m`;
-  if ((ms /= 60) < 24) return `${ms | 0}h`;
-  return `${(ms /= 24) | 0}d`;
+  const prefix = (() => {
+    if (ms >= 0) return '';
+    ms *= -1;
+    return '-';
+  })();
+  const suffix = (() => {
+    if ((ms /= 1000) < 60) return 's';
+    if ((ms /= 60) < 60) return 'm';
+    if ((ms /= 60) < 24) return 'h';
+    ms /= 24;
+    return 'd';
+  })();
+  return `${prefix}${ms | 0}${suffix}`;
 }

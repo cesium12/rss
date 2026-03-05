@@ -11,21 +11,18 @@ const io = socketio(app.listen(settings.port));
 const connection = mysql.createPool(settings.sqldb);
 const parser = new rssparser();
 
-async function update(link) {
+async function update(link, text) {
   let data = null, date = null, rows = new Map(), now = new Date();
   try {
-    data = await parser.parseString((await (await fetch(link)).text())
+    data = await parser.parseString((text ?? await (await fetch(link)).text())
         .replace(/^.+?(<[?]xml )/is, '$1').replace(/&(?!#?\w+;)/g, '&amp;'));
   } catch (error) {
     return connection.query('UPDATE feeds SET error = ? WHERE link = ?',
         [String(error), link]);
   }
   if (data.items && data.items.reverse().length) {
-    for (const item of data.items) {
-      item.link ||= item.guid;
-      if (!settings.http.some(site => item.link.includes(site)))
-        item.link = item.link.replace('http://', 'https://');
-    }
+    for (const item of data.items)
+      item.link = (item.link || item.guid).replace('http://', 'https://');
     const [exists] = await connection.query(
         'SELECT * FROM entries WHERE link in (?)',
         [data.items.map(({link}) => link)]);
@@ -59,7 +56,8 @@ async function update(link) {
 
 (async () => {
   while (true) try {
-    const [links] = await connection.query('SELECT link FROM feeds');
+    const [links] = await connection.query(
+        'SELECT link FROM feeds WHERE local = FALSE');
     for (const {link} of links) await update(link);
   } catch (error) {
     console.error(error);
@@ -67,20 +65,37 @@ async function update(link) {
   }
 })();
 
+app.use(express.json());
 app.get('/', (req, res) => res.sendFile('feeds.html', {root: __dirname}));
-app.get('/:days(\\d+)', (req, res) => connection.query(`
-    SELECT link, title, updated FROM entries
-    WHERE ordered > DATE_SUB(NOW(), INTERVAL ? DAY)
-    ORDER BY ordered desc, updated desc`, [req.params.days])
-    .then(([articles]) => res.json({articles})));
+app.get('/:days', async (req, res) => {
+  const [articles] = await connection.query(`
+      SELECT link, title, updated FROM entries
+      WHERE ordered > DATE_SUB(NOW(), INTERVAL ? DAY)
+      ORDER BY ordered desc, updated desc`, [req.params.days]);
+  const [local] = await connection.query(
+      'SELECT link FROM feeds WHERE local = TRUE');
+  res.json({articles, local});
+});
+app.post('/:days', async (req, res) => {
+  const {link, text} = req.body;
+  await update(link, text);
+  res.sendStatus(204);
+});
+
 io.sockets.on('connection', socket => {
   const init = () => connection.query(
-      'SELECT * FROM feeds ORDER BY error desc, title asc')
+      'SELECT * FROM feeds ORDER BY local desc, error desc, title asc')
       .then(([data]) => socket.emit('init', data));
   socket.on('subscribe', async link => {
     console.warn(`(+) ${link}`);
     await connection.query('INSERT IGNORE INTO feeds SET LINK = ?', [link]);
     await update(link);
+    init();
+  });
+  socket.on('toggle', async ({link, local}) => {
+    console.warn(`(/) ${link}`);
+    await connection.query('UPDATE feeds SET local = ? WHERE link = ?',
+        [local, link]);
     init();
   });
   socket.on('unsubscribe', async link => {

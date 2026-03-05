@@ -14,5 +14,11 @@
     "service_worker": "worker.js"
   },
   "host_permissions": ["https://*/"],
+  "content_scripts": [
+    {
+      "matches": ["*://*/*"],
+      "js": ["local.js"]
+    }
+  ],
   "permissions": ["alarms", "history", "storage", "tabs"]
 }

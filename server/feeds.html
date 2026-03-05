@@ -13,7 +13,7 @@ socket.on('init', data => {
   content.textContent = '';
   subscribe.class.disabled = false;
   subscribe.class.value = '';
-  for (const {link, title, updated, site, error} of data) {
+  for (const {link, local, title, updated, site, error} of data) {
     const row = content.insertRow();
     row.insertCell().append(updated ? new Date(updated).toLocaleString() : '');
     const button = document.createElement('button');
@@ -30,6 +30,13 @@ socket.on('init', data => {
     div.textContent = error;
     div.style.color = 'crimson';
     row.insertCell().append(a1, error ? div : '');
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.checked = local;
+    input.addEventListener('change', () => {
+      socket.emit('toggle', {link, local: input.checked});
+    });
+    row.insertCell().append(input);
     const a2 = document.createElement('a');
     a2.textContent = title;
     a2.href = site;
